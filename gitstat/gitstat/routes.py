@@ -142,17 +142,17 @@ def run_git_clone_or_checkout(git_repo_id):
     Operations performed with lock to avoid race conditions if
     two users are POSTing the same url at the same time.
     """
-    with open('gitstat.lock', 'w') as lock_file:
+    # Get the respective repo url, branch, revision:
+    repo_url = redis.hmget(git_repo_id, 'url')[0]
+    repo_branch = redis.hmget(git_repo_id, 'branch')[0] or 'master'
+    repo_revision = redis.hmget(git_repo_id, 'revision')[0]
+
+    repo_name = repo_url.split('/')[-1]  # assuming url is valid!
+    git_repo_path = path.join(GIT_REPOS_PATH, repo_name)  # where to clone
+    clone_params = {'branch': repo_branch}  # branch to clone
+
+    with open("".join((repo_name, '.lock')), 'w') as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)  # lock
-
-        # Get the respective repo url, branch, revision:
-        repo_url = redis.hmget(git_repo_id, 'url')[0]
-        repo_branch = redis.hmget(git_repo_id, 'branch')[0] or 'master'
-        repo_revision = redis.hmget(git_repo_id, 'revision')[0]
-
-        repo_name = repo_url.split('/')[-1]  # assuming url is valid!
-        git_repo_path = path.join(GIT_REPOS_PATH, repo_name)  # where to clone
-        clone_params = {'branch': repo_branch}  # branch to clone
 
         try:
             if check_repo_was_cloned(git_repo_path, git_repo_id):
